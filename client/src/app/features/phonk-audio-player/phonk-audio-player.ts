@@ -69,7 +69,6 @@ export class PhonkAudioPlayer {
       this.resetProgress();
     });
 
-    // Иконка громкости
     effect(() => {
       const vol = this.volume();
       if (this.isMuted()) {
