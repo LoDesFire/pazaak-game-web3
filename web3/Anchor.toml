@@ -5,7 +5,11 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
+[program]
+name = "pazaak"
+
 [programs.localnet]
+pazaak = "4vgRgThcJSXbP2a4qjwvWqxXwWxiDchUkpRvRQiuMUkR"
 
 [registry]
 url = "https://api.apr.dev"
