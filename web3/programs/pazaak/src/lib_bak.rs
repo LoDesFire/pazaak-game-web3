@@ -1,10 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
-use orao_solana_vrf::{self, state::NetworkState};
 
 pub mod states;
 use states::{
-    game_config::GameConfig, game_room::BusyGameRoom, game_room::CreatedGameRoom, game_room::GameRoom,
+    game_config::GameConfig, game_room::CreatedGameRoom, game_room::GameRoom,
     game_room::GameRoomState,
 };
 
@@ -13,7 +12,6 @@ declare_id!("E2Gdsj1RKoVGPTWZVN8qvZDYtD9AXPRZBVj6nvDJJ34C");
 pub const GAME_ROOM_SEED: &[u8] = b"pazaak-room";
 pub const GAME_CONFIG_SEED: &[u8] = b"pazaak-config";
 pub const ROOM_TREASURY_SEED: &[u8] = b"pazaak-room-treasury";
-pub const VRF_RANDOMNESS_SEED: &[u8] = b"randomness";
 
 #[program]
 pub mod pazaak {
@@ -67,59 +65,6 @@ pub mod pazaak {
         token::transfer(cpi_ctx, token_bid)?;
 
         msg!("Game room #{} created", room_id);
-        Ok(())
-    }
-
-    pub fn enter_game_room(
-        ctx: Context<EnterGameRoom>,
-        room_id: u64,
-        force: [u8; 32],
-    ) -> Result<()> {
-        // Проверяем, что комната ещё не занята и ставки совпадают
-        let (player1, token_bid, cards_hash) = match &ctx.accounts.game_room.state {
-            GameRoomState::Created(created) => (
-                created.player1,
-                created.token_bid,
-                created.cards_permutation_hash,
-            ),
-            _ => return err!(PazaakError::RoomNotJoinable),
-        };
-
-        require_keys_neq!(player1, ctx.accounts.player.key(), PazaakError::SamePlayer);
-
-        // Переводим ставку второго игрока в казну комнаты
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.player_token_account.to_account_info(),
-            to: ctx.accounts.room_treasury.to_account_info(),
-            authority: ctx.accounts.player.to_account_info(),
-        };
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, token_bid)?;
-
-        // Отправляем запрос в ORAO VRF
-        let vrf_program = ctx.accounts.vrf_program.to_account_info();
-        let vrf_accounts = orao_solana_vrf::cpi::accounts::RequestV2 {
-            payer: ctx.accounts.player.to_account_info(),
-            network_state: ctx.accounts.vrf_network_state.to_account_info(),
-            treasury: ctx.accounts.vrf_treasury.to_account_info(),
-            request: ctx.accounts.vrf_request.to_account_info(),
-            system_program: ctx.accounts.system_program.to_account_info(),
-        };
-        let vrf_ctx = CpiContext::new(vrf_program, vrf_accounts);
-        orao_solana_vrf::cpi::request_v2(vrf_ctx, force)?;
-
-        // Обновляем состояние комнаты
-        let vrf_seed = u32::from_le_bytes(force[0..4].try_into().unwrap());
-        ctx.accounts.game_room.state = GameRoomState::Busy(BusyGameRoom {
-            player1,
-            player2: ctx.accounts.player.key(),
-            token_bid,
-            cards_permutation_hash: cards_hash,
-            vrf_seed,
-        });
-
-        msg!("Player {:?} entered room #{}", ctx.accounts.player.key(), room_id);
         Ok(())
     }
 }
@@ -184,67 +129,8 @@ pub struct CreateGameRoom<'info> {
         associated_token::authority = player
     )]
     pub player_token_account: Account<'info, TokenAccount>,
-    #[account(
-        address = config.token_mint
-    )]
-    pub token_mint: Account<'info, Mint>,
-
-    pub token_program: Program<'info, Token>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(room_id: u64, force: [u8; 32])]
-pub struct EnterGameRoom<'info> {
-    #[account(mut)]
-    pub player: Signer<'info>,
-    #[account(
-        seeds = [GAME_CONFIG_SEED],
-        bump
-    )]
-    pub config: Account<'info, GameConfig>,
-    #[account(
-        mut,
-        seeds = [GAME_ROOM_SEED, room_id.to_le_bytes().as_ref()],
-        bump
-    )]
-    pub game_room: Account<'info, GameRoom>,
-    #[account(
-        mut,
-        seeds = [ROOM_TREASURY_SEED, room_id.to_le_bytes().as_ref()],
-        bump,
-        token::mint = token_mint,
-        token::authority = game_room
-    )]
-    pub room_treasury: Account<'info, TokenAccount>,
-    #[account(
-        mut,
-        associated_token::mint = token_mint,
-        associated_token::authority = player
-    )]
-    pub player_token_account: Account<'info, TokenAccount>,
     #[account(address = config.token_mint)]
     pub token_mint: Account<'info, Mint>,
-
-    // VRF accounts
-    /// CHECK: Account controlled by ORAO VRF program, seeds validated below
-    #[account(
-        mut,
-        seeds = [orao_solana_vrf::RANDOMNESS_ACCOUNT_SEED, &force],
-        bump,
-        seeds::program = orao_solana_vrf::ID
-    )]
-    pub vrf_request: AccountInfo<'info>,
-    /// CHECK: Treasury controlled by ORAO VRF network
-    #[account(mut)]
-    pub vrf_treasury: AccountInfo<'info>,
-    #[account(
-        seeds = [orao_solana_vrf::CONFIG_ACCOUNT_SEED],
-        bump,
-        seeds::program = orao_solana_vrf::ID
-    )]
-    pub vrf_network_state: Account<'info, NetworkState>,
-    pub vrf_program: Program<'info, orao_solana_vrf::program::OraoVrf>,
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -262,8 +148,4 @@ pub enum PazaakError {
     InvalidMinimalBid,
     #[msg("Token treasury mint mismatch")]
     InvalidTreasuryMint,
-    #[msg("Game room is not available to join")]
-    RoomNotJoinable,
-    #[msg("Same player cannot join twice")]
-    SamePlayer,
 }

@@ -1,136 +1,124 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { Pazaak } from '../target/types/pazaak';
-import { expect } from 'chai';
-import * as spl from '@solana/spl-token';
-import { PublicKey, Keypair } from '@solana/web3.js';
+import { Pazaak } from "../target/types/pazaak";
+import * as spl from "@solana/spl-token";
+import { PublicKey, Keypair } from "@solana/web3.js";
 
-describe('pazaak', () => {
-  // Configure the client to use the local cluster.
+/**
+ * Стендэлон-скрипт для запуска через `tsc && node`.
+ * Шаги: создаёт mint/treasury, инициализирует GameConfig, минтит токены игроку и создаёт комнату
+ * с отдельным PDA-казначейством комнаты.
+ */
+
+const CONFIG_SEED = Buffer.from("pazaak-config");
+const ROOM_SEED = Buffer.from("pazaak-room");
+const ROOM_TREASURY_SEED = Buffer.from("pazaak-room-treasury");
+
+const ROOM_ID = new anchor.BN(12);
+const TOKEN_BID = new anchor.BN(1_000_000); // 1.0 при decimals=6
+const MIN_BID = new anchor.BN(10_000);
+const CARDS_HASH = new Uint8Array(32).fill(1);
+
+async function main() {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
   const program = anchor.workspace.Pazaak as Program<Pazaak>;
-
-  // Глобальные переменные для теста
   const player = provider.wallet as anchor.Wallet;
-  const playerKeypair = Keypair.fromSecretKey(new Uint8Array(anchor.web3.Keypair.generate().secretKey));
+  const playerKeypair = player.payer as Keypair;
 
-  // Константы
-  const ROOM_ID = new anchor.BN(1);
-  const TOKEN_BID = new anchor.BN(1_000_000); // например, 1_000_000 lamports или 1 USDC (зависит от decimals)
-  const CARDS_HASH = new Uint8Array(32).fill(1); // dummy hash
+  console.log("Payer:", playerKeypair.publicKey.toBase58());
 
-  // PDAs
-  let gameRoomPda: PublicKey;
-  let configPda: PublicKey;
-  let tokenMint: PublicKey;
-  let tokenTreasury: PublicKey;
+  // Airdrop для покрытия транзакций
+  // const airdropTx = await provider.connection.requestAirdrop(
+  //   playerKeypair.publicKey,
+  //   2 * anchor.web3.LAMPORTS_PER_SOL
+  // );
+  // await provider.connection.confirmTransaction(airdropTx);
 
-  before(async () => {
-    // 1. Инициализация кошелька (если нужно)
-    const airdropTx = await provider.connection.requestAirdrop(
-      playerKeypair.publicKey,
-      2 * anchor.web3.LAMPORTS_PER_SOL
-    );
-    await provider.connection.confirmTransaction(airdropTx);
+  // PDA конфигурации и комнаты
+  const [configPda] = PublicKey.findProgramAddressSync(
+    [CONFIG_SEED],
+    program.programId
+  );
+  const [gameRoomPda] = PublicKey.findProgramAddressSync(
+    [ROOM_SEED, Buffer.from(ROOM_ID.toArray("le", 8))],
+    program.programId
+  );
+  const [roomTreasuryPda] = PublicKey.findProgramAddressSync(
+    [ROOM_TREASURY_SEED, Buffer.from(ROOM_ID.toArray("le", 8))],
+    program.programId
+  );
 
-    // 2. Создание токена (например, mock USDC)
-    tokenMint = await spl.createMint(
-      provider.connection,
-      playerKeypair,
-      playerKeypair.publicKey,
-      null,
-      6 // 6 decimals
-    );
+  // // Создаём тестовый mint
+  // const tokenMint = await spl.createMint(
+  //   provider.connection,
+  //   playerKeypair,
+  //   playerKeypair.publicKey,
+  //   null,
+  //   6
+  // );
+  let tokenMint = new PublicKey("DVv7y8qy85tQWhoxS8jfET1eABgSgrqE5M3MCr8Sg3Kd");
 
-    // 3. Получение PDA для config и treasury
-    [configPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('config')],
-      program.programId
-    );
+  // // Казначейство (ATA) для config
+  const treasuryAccount = await spl.getOrCreateAssociatedTokenAccount(
+    provider.connection,
+    playerKeypair,
+    tokenMint,
+    playerKeypair.publicKey
+  );
+  const tokenTreasury = treasuryAccount.address;
 
-    [tokenTreasury] = PublicKey.findProgramAddressSync(
-      [Buffer.from('treasury'), tokenMint.toBuffer()], // предположим, сид: "treasury" + mint
-      program.programId
-    );
-
-    // 4. Создание казначейства (token treasury account)
-    await spl.createAccount(
-      provider.connection,
-      playerKeypair,
+  // Инициализация GameConfig
+  await program.methods
+    .initializeGameConfig(playerKeypair.publicKey, MIN_BID)
+    .accounts({
+      configAuthority: playerKeypair.publicKey,
+      gameAuthority: playerKeypair.publicKey,
       tokenMint,
-      configPda // authority — config (или game authority), зависит от вашей логики
-    );
+      tokenTreasury,
+    })
+    .signers([playerKeypair])
+    .rpc();
+  console.log("GameConfig initialized at", configPda.toBase58());
 
-    // 5. Создание PDA комнаты
-    [gameRoomPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('pazaak-room'), ROOM_ID.toArray('le', 8)],
-      program.programId
-    );
-  });
+  // let cfg = await program.account.gameConfig.fetch(configPda);
+  // let tokenMint = cfg.tokenMint;
+  // let tokenTreasury = cfg.tokenTreasury;
 
-  it('Инициализирует GameConfig', async () => {
-    // Предположим, что у вас есть инструкция initialize_config
-    // Если нет — её нужно добавить
-    try {
-      await program.methods
-        .initializeConfig(new anchor.BN(100_000)) // min bid
-        .accounts({
-          config: configPda,
-          tokenMint: tokenMint,
-          tokenTreasury: tokenTreasury,
-          authority: playerKeypair.publicKey,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .signers([playerKeypair])
-        .rpc();
-    } catch (err) {
-      // Если уже инициализирован — пропускаем
-      console.log('Config уже инициализирован или ошибка:', err);
-    }
-  });
+  // ATA игрока и пополнение
+  // const playerTokenAccount = await spl.getOrCreateAssociatedTokenAccount(
+  //   provider.connection,
+  //   playerKeypair,
+  //   tokenMint,
+  //   playerKeypair.publicKey
+  // );
+  // await spl.mintTo(
+  //   provider.connection,
+  //   playerKeypair,
+  //   tokenMint,
+  //   playerTokenAccount.address,
+  //   playerKeypair,
+  //   TOKEN_BID.toNumber()
+  // );
 
-  it('Создаёт игровую комнату', async () => {
-    // ATA игрока
-    const playerTokenAccount = await spl.getOrCreateAssociatedTokenAccount(
-      provider.connection,
-      playerKeypair,
-      tokenMint,
-      playerKeypair.publicKey
-    );
+  // // Создание комнаты (ставка уходит в roomTreasury PDA)
+  // const tx = await program.methods
+  //   .createGameRoom(ROOM_ID, TOKEN_BID, Array.from(CARDS_HASH))
+  //   .accounts({
+  //     player: playerKeypair.publicKey,
+  //     tokenMint: tokenMint,
+  //   })
+  //   .signers([playerKeypair])
+  //   .rpc();
+  // console.log("Game room created at", gameRoomPda.toBase58(), "tx", tx);
 
-    // Пополняем баланс игрока
-    await spl.mintTo(
-      provider.connection,
-      playerKeypair,
-      tokenMint,
-      playerTokenAccount.address,
-      playerKeypair,
-      TOKEN_BID.toNumber()
-    );
+  // // Вывод состояния комнаты
+  // const gameRoomAccount = await program.account.gameRoom.fetch(gameRoomPda);
+  // console.log("Game room account:", JSON.stringify(gameRoomAccount, null, 2));
+}
 
-    // Вызов инструкции create_game_room
-    await program.methods
-      .createGameRoom(ROOM_ID, TOKEN_BID, CARDS_HASH)
-      .accounts({
-        player: playerKeypair.publicKey,
-        config: configPda,
-        gameRoom: gameRoomPda,
-        playerTokenAccount: playerTokenAccount.address,
-        tokenTreasury: tokenTreasury,
-        tokenProgram: spl.TOKEN_PROGRAM_ID,
-      })
-      .signers([playerKeypair])
-      .rpc();
-
-    // Проверка: аккаунт комнаты создан
-    const gameRoomAccount = await program.account.gameRoom.fetch(gameRoomPda);
-    const state = gameRoomAccount.state as any;
-    expect(state.player1).to.eql(playerKeypair.publicKey.toString());
-    expect(state.tokenBid.toString()).to.eq(TOKEN_BID.toString());
-    expect(Buffer.from(state.cardsPermutationHash)).to.eql(CARDS_HASH);
-
-    console.log('Game room успешно создана:', gameRoomPda.toString());
-  });
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });

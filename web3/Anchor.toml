@@ -9,14 +9,17 @@ skip-lint = false
 name = "pazaak"
 
 [programs.localnet]
-pazaak = "4vgRgThcJSXbP2a4qjwvWqxXwWxiDchUkpRvRQiuMUkR"
+pazaak = "E2Gdsj1RKoVGPTWZVN8qvZDYtD9AXPRZBVj6nvDJJ34C"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
+
+[test]
+startup_wait = 30000
