@@ -2,7 +2,7 @@ import enum
 
 
 class CardType(enum.Enum):
-    UserCard = 'UsedCard'
+    UsedCard = 'UsedCard'
     FromCommonDeck = 'FromCommonDeck'
     Plus = 'Plus'
     Minus = 'Minus'
@@ -15,6 +15,9 @@ class CardType(enum.Enum):
 
 
 class PlayerState(enum.Enum):
+    Initial = 'Initial'
+    ReadyToStartGame = 'ReadyToStartGame'
     ActiveTurn = 'ActiveTurn'
+    PlayedCard = 'PlayedCard'
     WaitEnemyTurn = 'WaitEnemyTurn'
     Stand = 'Stand'
