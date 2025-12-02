@@ -8,3 +8,6 @@ test-ledger
 
 node_modules
 dist
+
+test-ledger
+target
