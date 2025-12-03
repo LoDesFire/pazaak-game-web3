@@ -76,7 +76,7 @@ class RedisClient:
         key = self._get_deck_key(user.id)
         # collection_service = CollectionService()
         # collection = collection_service.get_collection(user)
-        if len(cards) != 10:
+        if len(cards) != 12:
             return False
         deck = Deck(
             player1Id=user.id, 

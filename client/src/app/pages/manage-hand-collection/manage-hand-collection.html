@@ -1,0 +1,97 @@
+<div class="collection-container">
+  @if (isLoading()) {
+    <div class="loading-overlay">
+      <mat-spinner diameter="60"></mat-spinner>
+      <p>Загружаем колоду...</p>
+    </div>
+  }
+
+  <div class="content">
+    <div class="available-section">
+      <mat-card appearance="outlined" class="section-card">
+        <mat-card-header>
+          <mat-card-title>Available cards ({{ availableCards().length }})</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="game-board available-grid">
+            @for (slot of availableSlots(); track slot; let i = $index) {
+              <div class="board-cell">
+                <div class="card"
+                     [class.interactive]="availableCards()[i]"
+                     (click)="availableCards()[i] && onCardClick(availableCards()[i])">
+                  @if (availableCards()[i]) {
+                    <img [src]="getCardImagePath(availableCards()[i])"
+                         class="card-image"
+                         alt=""/>
+                    <div class="card-value-wrapper">
+                      <div class="card-value">
+<!--                        {{ i }}-->
+                        {{ availableCards()[i].value > 0 ? '+' : '' }}{{ availableCards()[i].value }}
+                      </div>
+                    </div>
+                  }
+<!--                  } @else {-->
+<!--                    <div class="empty-cell"></div>-->
+<!--                  }-->
+                </div>
+              </div>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      @if (selectedCardId()) {
+        <mat-card appearance="outlined" class="description-card">
+          <mat-card-content>
+            <strong>
+              {{ 'Карта' }}
+            </strong>
+            <p>Кликните, чтобы добавить или убрать из колоды</p>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+
+    <div class="chosen-section">
+      <mat-card appearance="outlined" class="section-card">
+        <mat-card-header>
+          <mat-card-title>Current deck ({{ chosenDeck().length }}/12)</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="game-board chosen-grid">
+            @for (slot of deckSlots(); track slot; let i = $index) {
+              <div class="board-cell">
+                <div class="card"
+                     [class.interactive]="chosenDeck()[i]"
+                     (click)="chosenDeck()[i] && onCardClick(chosenDeck()[i])">
+                  @if (chosenDeck()[i]) {
+                    <img [src]="getCardImagePath(chosenDeck()[i])"
+                         class="card-image"
+                         alt="" />
+                    <div class="card-value-wrapper">
+                      <div class="card-value">
+                        {{ chosenDeck()[i].value > 0 ? '+' : '' }}{{ chosenDeck()[i].value }}
+                      </div>
+                    </div>
+                  } @else {
+                    <div class="empty-cell">?</div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="confirm-section">
+            <button mat-raised-button
+                    color="primary"
+                    class="confirm-btn"
+                    [disabled]="!canConfirm()"
+                    (click)="onConfirmClick()">
+              Confirm ({{ chosenDeck().length }}/12)
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+</div>

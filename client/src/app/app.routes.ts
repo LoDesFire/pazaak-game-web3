@@ -9,6 +9,7 @@ import { GamePage } from './pages/game-page/game-page';
 import { LoginPage } from './pages/login-page/login-page';
 import { authGuard } from './core/guards/auth-guard';
 import { LootboxesPage } from './pages/lootboxes-page/lootboxes-page';
+import { ManageHandCollection } from './pages/manage-hand-collection/manage-hand-collection';
 
 export const routes: Routes = [
   {
@@ -36,7 +37,12 @@ export const routes: Routes = [
         canMatch: [authGuard],
       },
       {
-        path: 'card-collection',
+        path: 'manage-hand-collection',
+        component: ManageHandCollection,
+        canMatch: [authGuard],
+      },
+      {
+        path: 'nft-cards',
         component: CardCollectionPage,
         canMatch: [authGuard],
       },
