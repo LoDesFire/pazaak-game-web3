@@ -143,47 +143,69 @@ export class StartGameBlockchainService implements OnDestroy {
   }
 
   async joinGameOnChain(roomId: number): Promise<void> {
-    if (!this.program || !this.provider) throw new Error('Блокчейн не готов');
+    if (!this.program || !this.provider) {
+      throw new Error('Блокчейн не готов');
+    }
+  
     const wallet = this.walletService.wallet();
-    if (!wallet?.publicKey) throw new Error('Кошелёк не подключён');
-
+    if (!wallet?.publicKey) {
+      throw new Error('Кошелёк не подключён');
+    }
+  
     const roomIdBn = new anchor.BN(roomId);
     const force = crypto.getRandomValues(new Uint8Array(32));
-
+  
     // === Основные PDA ===
-    const [configPda] = PublicKey.findProgramAddressSync([CONFIG_SEED], this.program.programId);
+    const [configPda] = PublicKey.findProgramAddressSync(
+      [CONFIG_SEED],
+      this.program.programId
+    );
+  
     const [gameRoomPda] = PublicKey.findProgramAddressSync(
       [ROOM_SEED, roomIdBn.toArrayLike(Buffer, 'le', 8)],
       this.program.programId
     );
+  
     const [roomTreasuryPda] = PublicKey.findProgramAddressSync(
       [Buffer.from('pazaak-room-treasury'), roomIdBn.toArrayLike(Buffer, 'le', 8)],
       this.program.programId
     );
-
+  
     // === Config + Token Mint ===
     const config = await this.program.account.gameConfig.fetch(configPda);
     const tokenMint = config.tokenMint;
-    const playerTokenAccount = getAssociatedTokenAddressSync(tokenMint, wallet.publicKey);
-
-    // === ORAO VRF аккаунты (всё хардкодим — они всегда одинаковые на devnet) ===
+  
+    // === Player's Token Account (ATA) ===
+    const playerTokenAccount = getAssociatedTokenAddressSync(
+      tokenMint,
+      wallet.publicKey
+    );
+  
+    // === VRF Адреса ===
     const ORAO_VRF_PROGRAM_ID = new PublicKey('VRFzZoJdhFWL8rkvu87LpKM3RbcVezpMEc6X5GVDr7y');
-    const ORAO_NETWORK_STATE = PublicKey.findProgramAddressSync(
+    
+    // Network State (фиксированный адрес для devnet)
+    const [vrfNetworkStatePda] = PublicKey.findProgramAddressSync(
       [Buffer.from('orao-vrf-network-configuration')],
       ORAO_VRF_PROGRAM_ID
-    )[0];
-
-    // Это реальный vrfTreasury на devnet (проверил на Solana.fm)
-    const ORAO_VRF_TREASURY = new PublicKey('G3sY4w2eV8Laa1fZ7G8aK6Z8vDF3e5f3e5f3e5f3e5f3');
-
-    // vrfRequest — PDA от force (seed)
+    );
+  
+    // VRF Request PDA (от force seed)
     const [vrfRequestPda] = PublicKey.findProgramAddressSync(
       [Buffer.from('orao-vrf-randomness-request'), force],
       ORAO_VRF_PROGRAM_ID
     );
 
-    console.log('%c[Blockchain] Входим в комнату #${roomId}...', 'color: orange');
-
+    let vrfTreasury: PublicKey;
+    try {
+      const networkStateAccount = await this.program.account.networkState.fetch(vrfNetworkStatePda);
+      vrfTreasury = networkStateAccount.config.treasury;
+      console.log('Found VRF treasury from network state:', vrfTreasury.toBase58());
+    } catch (err) {
+      console.warn('Could not fetch network state, using fallback VRF treasury');
+      vrfTreasury = new PublicKey('G3sY4w2eV8Laa1fZ7G8aK6Z8vDF3e5f3e5f3e5f3e5f3');
+    }
+  
     try {
       const txSig = await this.program.methods
         .enterGameRoom(roomIdBn, Array.from(force))
@@ -194,25 +216,32 @@ export class StartGameBlockchainService implements OnDestroy {
           roomTreasury: roomTreasuryPda,
           playerTokenAccount: playerTokenAccount,
           tokenMint: tokenMint,
-
-          // === VRF аккаунты (обязательно!) ===
           vrfRequest: vrfRequestPda,
-          vrfTreasury: ORAO_VRF_TREASURY,
-          vrfNetworkState: ORAO_NETWORK_STATE,
+          vrfTreasury: vrfTreasury,
+          vrfNetworkState: vrfNetworkStatePda,
           vrfProgram: ORAO_VRF_PROGRAM_ID,
-
           tokenProgram: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
           systemProgram: SystemProgram.programId,
         })
         .rpc();
-
-      console.log('%c[Blockchain] УСПЕШНО вошёл в игру!', 'color: lime; font-size: 18px', txSig);
+  
+      console.log('%c[Blockchain] Успешно вошли в комнату!', 'color: lime; font-weight: bold');
       console.log('Транзакция:', `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
-
+      
+      // Проверим обновлённое состояние комнаты
+      const updatedGameRoom = await this.program.account.gameRoom.fetch(gameRoomPda);
+      console.log('Обновлённое состояние комнаты:', JSON.stringify(updatedGameRoom, null, 2));
+  
     } catch (err: any) {
-      console.error('[Blockchain] Ошибка входа:', err);
+      console.error('[Blockchain] Ошибка входа в комнату:', err);
+      
+      // Детальная диагностика ошибки
+      if (err.logs) {
+        console.error('Transaction logs:', err.logs);
+      }
+      
       this.error$.next('Не удалось войти в игру');
-      throw err;
+      throw new Error(`Join game failed: ${err.message}`);
     }
   }
 

@@ -93,7 +93,7 @@ export class ConnectToGamePage implements OnDestroy {
     this.isJoining.set(true);
 
     try {
-      // await this.startGameBlockchainService.joinGameOnChain(gameId);
+      await this.startGameBlockchainService.joinGameOnChain(gameId);
 
       const game = await firstValueFrom(this.gameService.connectToGame(gameId));
       this.socketService.connectToGame(game.id.toString(), this.authService.getJwtToken() || '');
