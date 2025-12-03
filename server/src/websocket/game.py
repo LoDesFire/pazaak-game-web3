@@ -148,7 +148,7 @@ async def connect(sid, environ):
 
     if not redis_client.get_game_state(room_id):
         await sio.save_session(sid, {'room_id': room_id, 'user_id': user_id, 'is_first_player': True})
-        redis_client.create_game(room_id, user_id, user.nickname, sample(list(available_cards.values()), 4))
+        redis_client.create_game(room_id, user_id, user.nickname, sample(list(available_cards.values()), 4), game.bid, game.reward)
     elif not redis_client.get_game_state(room_id).player2Id:
         redis_client.connect_to_game(room_id, user_id, user.nickname, sample(list(available_cards.values()), 4))
         await sio.save_session(sid, {'room_id': room_id, 'user_id': user_id, 'is_first_player': False})

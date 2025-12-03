@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import List, Optional
 import redis
 from config.settings import settings
@@ -19,7 +20,7 @@ class RedisClient:
         return f'game:{game_id}'
     
     def create_game(self, game_id: int, player1_id: int, player1_name: str,
-                   hand1: List[Card]) -> bool:
+                   hand1: List[Card], bid: Decimal, reward: Decimal) -> bool:
         game_state = GameState(
             gameId=game_id,
             player1Id=player1_id,
@@ -27,6 +28,8 @@ class RedisClient:
             hand1=hand1,
             Player1State=PlayerState.ActiveTurn,
             Player2State=PlayerState.WaitEnemyTurn,
+            bid=bid,
+            reward=reward
         )
         
         return self.update_game_state(game_id, game_state)
