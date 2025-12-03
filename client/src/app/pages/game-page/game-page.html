@@ -43,7 +43,7 @@
                     <img
                       [src]="getCardImagePath(gameState().board1[pos])"
                       [alt]="gameState().board1[pos].type"
-                      (click)="onSelectCardClick(gameState().board1[pos])"
+                      (click)="onSelectCardClick(gameState().board1[pos], null)"
                       class="card-image" />
 
                     <div class="card-value-wrapper">
@@ -69,7 +69,7 @@
                     <img
                       [src]="getCardImagePath(gameState().hand1[pos])"
                       [alt]="gameState().hand1[pos].type"
-                      (click)="onSelectCardClick(gameState().hand1[pos])"
+                      (click)="onSelectCardClick(gameState().hand1[pos], pos)"
                       class="card-image" />
                     <div class="card-value-wrapper">
                       <div class="card-value">
@@ -85,7 +85,7 @@
                 <button
                   matButton="elevated"
                   class="hand-card-button"
-                  (click)="onHandCardSwapClick(gameState().hand1[pos])"
+                  (click)="onHandCardSwapClick(gameState().hand1[pos], pos)"
                   [disabled]="!canSwapCard(gameState().hand1[pos])">
                   Swap
                 </button>
@@ -130,7 +130,7 @@
                     <img
                       [src]="getCardImagePath(gameState().board2[pos])"
                       [alt]="gameState().board2[pos].type"
-                      (click)="onSelectCardClick(gameState().board2[pos])"
+                      (click)="onSelectCardClick(gameState().board2[pos], null)"
                       class="card-image" />
                     <div class="card-value-wrapper">
                       <div class="card-value">
@@ -229,7 +229,7 @@
                     <img
                       [src]="getCardImagePath(gameState().board2[pos])"
                       [alt]="gameState().board2[pos].type"
-                      (click)="onSelectCardClick(gameState().board2[pos])"
+                      (click)="onSelectCardClick(gameState().board2[pos], null)"
                       class="card-image" />
 
                     <div class="card-value-wrapper">
@@ -255,7 +255,7 @@
                     <img
                       [src]="getCardImagePath(gameState().hand2[pos])"
                       [alt]="gameState().hand2[pos].type"
-                      (click)="onSelectCardClick(gameState().hand2[pos])"
+                      (click)="onSelectCardClick(gameState().hand2[pos], pos)"
                       class="card-image" />
                     <div class="card-value-wrapper">
                       <div class="card-value">
@@ -271,7 +271,7 @@
                 <button
                   matButton="elevated"
                   class="hand-card-button"
-                  (click)="onHandCardSwapClick(gameState().hand2[pos])"
+                  (click)="onHandCardSwapClick(gameState().hand2[pos], pos)"
                   [disabled]="!canSwapCard(gameState().hand2[pos])">
                   Swap
                 </button>
@@ -316,7 +316,7 @@
                     <img
                       [src]="getCardImagePath(gameState().board1[pos])"
                       [alt]="gameState().board1[pos].type"
-                      (click)="onSelectCardClick(gameState().board1[pos])"
+                      (click)="onSelectCardClick(gameState().board1[pos], null)"
                       class="card-image" />
                     <div class="card-value-wrapper">
                       <div class="card-value">

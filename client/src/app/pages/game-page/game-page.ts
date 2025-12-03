@@ -41,6 +41,7 @@ export class GamePage implements OnInit {
   gameId = signal<number>(0);
   gameState = signal<GameState>(null!);
   selectedCard = signal<Card | null>(null);
+  selectedCardIndex = signal<number | null>(null);
   remainingTime = signal<number>(60);
 
   isBoardSwapped = computed(() => {
@@ -288,15 +289,20 @@ export class GamePage implements OnInit {
     }
   }
 
-  onSelectCardClick(card: Card) {
+  onSelectCardClick(card: Card, pos: number | null ) {
     if (!card) {
       this.selectedCard.set(null);
+      this.selectedCardIndex.set(null);
       return;
     }
 
     const state = this.gameState();
     if (!state) {
       return;
+    }
+
+    if (pos) {
+      this.selectedCardIndex.set(pos);
     }
 
     const myHand = this.isBoardSwapped() ? state.hand2 : state.hand1;
@@ -320,23 +326,25 @@ export class GamePage implements OnInit {
     }
 
     this.selectedCard.set(null);
+    this.selectedCardIndex.set(null);
   }
 
-  onHandCardSwapClick(card: Card) {
+  onHandCardSwapClick(card: Card, pos: number) {
     this.selectedCard.set(null);
+    this.selectedCardIndex.set(null);
     const state = this.gameState();
     const myHand = this.isBoardSwapped() ? state.hand2 : state.hand1;
-    const index = myHand.findIndex(c =>
-      c && c.value === card.value && c.type === card.type
-    );
-    if (index === null || index === undefined) {
-      console.warn('[Game] Card not found in hand');
-      return;
-    }
+    // const index = myHand.findIndex(c =>
+    //   c && c.value === card.value && c.type === card.type
+    // );
+    // if (index === null || index === undefined) {
+    //   console.warn('[Game] Card not found in hand');
+    //   return;
+    // }
 
-    console.log(`[Game] Swapping card at index ${index}`);
+    console.log(`[Game] Swapping card at index ${pos}`);
 
-    this.socketService.emit('change_card_state', {index});
+    this.socketService.emit('change_card_state', {'index': pos});
   }
 
   canSwapCard(card: Card): boolean {
@@ -382,7 +390,8 @@ export class GamePage implements OnInit {
       return;
     }
 
-    const index = this.getSelectedCardIndex();
+    // const index = this.getSelectedCardIndex();
+    const index = this.selectedCardIndex();
     if (index === null || index === undefined) {
       console.warn('[Game] Card not found in hand');
       return;
@@ -393,6 +402,7 @@ export class GamePage implements OnInit {
     this.socketService.emit('play_card', {index});
 
     this.selectedCard.set(null);
+    this.selectedCardIndex.set(null);
   }
 
   onEndTurnClick() {
