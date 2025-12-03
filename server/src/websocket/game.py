@@ -37,15 +37,17 @@ def _get_card_from_common_deck(game_state: GameState, is_first_player: bool):
 async def _end_game_check(game_state: GameState):
     if game_state.roundPoint1 == 3 or game_state.roundPoint2 == 3:
         game_service = GameService()
-        game_state.Player1State = PlayerState.WaitEnemyTurn
-        game_state.Player2State = PlayerState.WaitEnemyTurn
         winner_side = None
         if game_state.roundPoint1 == 3:
+            game_state.Player1State = PlayerState.Won
+            game_state.Player2State = PlayerState.Lost
             await game_service.update_one(
                 game_state.gameId, GameSchemaUpdate(result=GameResult.PLAYER1_WON)
             )
             winner_side = web3_service.WinnerSide.PLAYER1
         elif game_state.roundPoint2 == 3:
+            game_state.Player2State = PlayerState.Won
+            game_state.Player1State = PlayerState.Lost
             await game_service.update_one(
                 game_state.gameId, GameSchemaUpdate(result=GameResult.PLAYER2_WON)
             )
@@ -179,7 +181,12 @@ async def connect(sid, environ):
             sid, {"room_id": room_id, "user_id": user_id, "is_first_player": True}
         )
         redis_client.create_game(
-            room_id, user_id, user.nickname, sample(list(available_cards.values()), 4)
+            room_id,
+            user_id,
+            user.nickname,
+            sample(list(available_cards.values()), 4),
+            game.bid,
+            game.reward,
         )
     elif not redis_client.get_game_state(room_id).player2Id:
         redis_client.connect_to_game(
@@ -494,8 +501,12 @@ async def concede(sid, data=None):
         game_state.Player2State = PlayerState.WaitEnemyTurn
         if is_first_player:
             game_state.roundPoint2 = 3
+            game_state.Player2State = PlayerState.Won
+            game_state.Player1State = PlayerState.Lost
         else:
             game_state.roundPoint1 = 3
+            game_state.Player1State = PlayerState.Won
+            game_state.Player2State = PlayerState.Lost
         redis_client.update_game_state(room_id, game_state)
 
         await sio.emit(

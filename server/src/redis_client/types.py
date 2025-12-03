@@ -1,3 +1,4 @@
+from decimal import Decimal
 import time
 from typing import List, Optional
 
@@ -65,6 +66,8 @@ class GameState(BaseModel):
     roundPoint2: int = Field(ge=0, le=3, default=0)
     Player1State: PlayerState = PlayerState.Initial
     Player2State: PlayerState = PlayerState.Initial
+    bid: Decimal
+    reward: Decimal
 
     turnEndTime: float = Field(default_factory=lambda: time.time() + 60)
 
