@@ -11,6 +11,15 @@
             </div>
           }
         </div>
+        @if (gameState().Player1State === PlayerState.Stand) {
+          <div class="stand-status">
+            <mat-card appearance="outlined" class="stand-card">
+              <mat-card-content class="stand-content">
+                STAND
+              </mat-card-content>
+            </mat-card>
+          </div>
+        }
       </div>
       <div class="game-outer-container">
         <div class="top-bar">
@@ -36,8 +45,11 @@
                       [alt]="gameState().board1[pos].type"
                       (click)="onSelectCardClick(gameState().board1[pos])"
                       class="card-image" />
-                    <div class="card-value">
-                      {{ gameState().board1[pos].value }}
+
+                    <div class="card-value-wrapper">
+                      <div class="card-value">
+                        {{ gameState().board1[pos].value }}
+                      </div>
                     </div>
                   } @else {
                     <div class="empty-cell"></div>
@@ -59,8 +71,10 @@
                       [alt]="gameState().hand1[pos].type"
                       (click)="onSelectCardClick(gameState().hand1[pos])"
                       class="card-image" />
-                    <div class="card-value">
-                      {{ gameState().hand1[pos].value }}
+                    <div class="card-value-wrapper">
+                      <div class="card-value">
+                        {{ gameState().hand1[pos].value }}
+                      </div>
                     </div>
                   } @else {
                     <div class="empty-cell"></div>
@@ -71,7 +85,8 @@
                 <button
                   matButton="elevated"
                   class="hand-card-button"
-                  (click)="onHandCardSwapClick(gameState().hand1[pos])">
+                  (click)="onHandCardSwapClick(gameState().hand1[pos])"
+                  [disabled]="!canSwapCard(gameState().hand1[pos])">
                   Swap
                 </button>
               </div>
@@ -117,8 +132,10 @@
                       [alt]="gameState().board2[pos].type"
                       (click)="onSelectCardClick(gameState().board2[pos])"
                       class="card-image" />
-                    <div class="card-value">
-                      {{ gameState().board2[pos].value }}
+                    <div class="card-value-wrapper">
+                      <div class="card-value">
+                        {{ gameState().board2[pos].value }}
+                      </div>
                     </div>
                   } @else {
                     <div class="empty-cell"></div>
@@ -214,8 +231,11 @@
                       [alt]="gameState().board2[pos].type"
                       (click)="onSelectCardClick(gameState().board2[pos])"
                       class="card-image" />
-                    <div class="card-value">
-                      {{ gameState().board2[pos].value }}
+
+                    <div class="card-value-wrapper">
+                      <div class="card-value">
+                        {{ gameState().board2[pos].value }}
+                      </div>
                     </div>
                   } @else {
                     <div class="empty-cell"></div>
@@ -237,8 +257,10 @@
                       [alt]="gameState().hand2[pos].type"
                       (click)="onSelectCardClick(gameState().hand2[pos])"
                       class="card-image" />
-                    <div class="card-value">
-                      {{ gameState().hand2[pos].value }}
+                    <div class="card-value-wrapper">
+                      <div class="card-value">
+                        {{ gameState().hand2[pos].value }}
+                      </div>
                     </div>
                   } @else {
                     <div class="empty-cell"></div>
@@ -249,7 +271,8 @@
                 <button
                   matButton="elevated"
                   class="hand-card-button"
-                  (click)="onHandCardSwapClick(gameState().hand2[pos])">
+                  (click)="onHandCardSwapClick(gameState().hand2[pos])"
+                  [disabled]="!canSwapCard(gameState().hand2[pos])">
                   Swap
                 </button>
               </div>
@@ -295,8 +318,10 @@
                       [alt]="gameState().board1[pos].type"
                       (click)="onSelectCardClick(gameState().board1[pos])"
                       class="card-image" />
-                    <div class="card-value">
-                      {{ gameState().board1[pos].value }}
+                    <div class="card-value-wrapper">
+                      <div class="card-value">
+                        {{ gameState().board1[pos].value }}
+                      </div>
                     </div>
                   } @else {
                     <div class="empty-cell"></div>
@@ -353,6 +378,15 @@
             </div>
           }
         </div>
+        @if (gameState().Player1State === PlayerState.Stand) {
+          <div class="stand-status">
+            <mat-card appearance="outlined" class="stand-card">
+              <mat-card-content class="stand-content">
+                STAND
+              </mat-card-content>
+            </mat-card>
+          </div>
+        }
       </div>
     }
   </div>
